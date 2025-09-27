@@ -1,0 +1,21 @@
+#
+# Global Compliance Settings for Automated Checks
+# These values define the minimum security requirements based on your chosen standards (PCI-DSS, NIST, etc.)
+#
+
+# --- 1. Password Policy (Used by checks/password_policy.py) ---
+password_policy:
+  min_length: 14
+  requires_complexity: True  # Requires mixed case, numbers, and symbols
+  history_depth: 24          # Minimum number of previous passwords to prevent reuse
+  max_age_days: 90
+
+# --- 2. System Settings ---
+system_config:
+  logging_retention_days: 365 # PCI requirement for audit log history
+  secure_shell_protocol:
+    min_ssh_version: 2
+    disable_root_login: True
+    accepted_ciphers:
+      - 'chacha20-poly1305@openssh.com'
+      - 'aes256-gcm@openssh.com'
