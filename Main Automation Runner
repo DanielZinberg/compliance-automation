@@ -1,0 +1,82 @@
+import argparse
+import importlib.util
+import yaml
+import os
+
+# --- Configuration Loading ---
+
+def load_config(filepath="config/compliance_settings.yaml"):
+    """Loads compliance settings from a YAML file."""
+    try:
+        with open(filepath, 'r') as f:
+            return yaml.safe_load(f)
+    except FileNotFoundError:
+        print(f"Error: Configuration file not found at {filepath}")
+        return None
+    except Exception as e:
+        print(f"Error loading configuration: {e}")
+        return None
+
+# --- Check Execution ---
+
+def run_check(check_name, config):
+    """Dynamically loads and runs a specific compliance check module."""
+    module_path = os.path.join("checks", f"{check_name}.py")
+    module_name = f"checks.{check_name}"
+
+    if not os.path.exists(module_path):
+        print(f"Error: Compliance check '{check_name}' not found at {module_path}")
+        return
+
+    try:
+        # Dynamically import the module
+        spec = importlib.util.spec_from_file_location(module_name, module_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        # The check function is assumed to be named 'run_compliance_check'
+        if hasattr(module, 'run_compliance_check'):
+            print(f"\nCompliance Check: {module.CHECK_TITLE}")
+            print("-" * 37)
+            
+            # Pass the relevant section of the config to the check
+            check_config = config.get(module.CONFIG_SECTION, {})
+            
+            # Execute the check
+            result = module.run_compliance_check(check_config)
+            
+            # Report the summary
+            print("-" * 37)
+            if result['is_compliant']:
+                print("RESULT: All checks PASSED. COMPLIANT.")
+            else:
+                fail_count = len([c for c in result['details'] if not c['passed']])
+                print(f"RESULT: {fail_count} FAILED check(s) found. NON-COMPLIANT.")
+        else:
+            print(f"Error: Module {module_name} is missing the 'run_compliance_check' function.")
+
+    except Exception as e:
+        print(f"An error occurred while running check {check_name}: {e}")
+
+# --- Main Logic ---
+
+def main():
+    """Parses arguments and orchestrates the compliance checks."""
+    parser = argparse.ArgumentParser(
+        description="Automated Compliance Check Runner."
+    )
+    parser.add_argument(
+        '--check',
+        type=str,
+        default='password_policy', # Default to run our sample check
+        help="Specify a single check module to run (e.g., 'password_policy')."
+    )
+
+    args = parser.parse_args()
+    
+    config = load_config()
+    if config:
+        run_check(args.check, config)
+
+if __name__ == "__main__":
+    main()
